@@ -1,8 +1,9 @@
 package MouseToolPkg;
 
 import java.awt.Point;
+import java.io.Serializable;
 
-public class MouseNode extends Point{
+public class MouseNode extends Point implements Serializable{
 
 	/**
 	 * 

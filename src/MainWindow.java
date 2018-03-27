@@ -4,12 +4,16 @@ import javax.swing.DefaultListModel;
 import javax.swing.JButton;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.net.Socket;
+import java.util.ArrayList;
 import java.awt.event.ActionEvent;
 import javax.swing.JProgressBar;
 import javax.swing.UIManager;
@@ -101,7 +105,6 @@ public class MainWindow extends JFrame{
 		getContentPane().add(YLab);
 		
 		btnTranscribe = new JButton("\u5F55\u5236");
-		
 		btnTranscribe.setBounds(10, 60, 93, 23);
 		getContentPane().add(btnTranscribe);
 		
@@ -157,7 +160,7 @@ public class MainWindow extends JFrame{
 		dataCheckBox.setBounds(180, 330, 103, 23);
 		getContentPane().add(dataCheckBox);
 		
-		//初始化客户端和服务端
+		/*//初始化客户端和服务端
 		try {
 			client=new BaseLanClient("测试客户端", new ClientConnectionStateCallback() {
 				
@@ -197,8 +200,8 @@ public class MainWindow extends JFrame{
 				@Override
 				public boolean onServiceMsgReceived(ServiceDevice sDevice) {
 					// TODO Auto-generated method stub
-					/*System.out.println(sDevice.getHost()+" "+new String(sDevice.getCode())+" "
-					+((sDevice.getState()==ServiceState.SERVICE_IS_RUNNING)?"已经运行":"即将断开"));*/
+					System.out.println(sDevice.getHost()+" "+new String(sDevice.getCode())+" "
+					+((sDevice.getState()==ServiceState.SERVICE_IS_RUNNING)?"已经运行":"即将断开"));
 					return true;
 				}
 				public void onServiceDeviceStateChanged(int listSize,ServiceDevice device,byte state) {
@@ -226,7 +229,7 @@ public class MainWindow extends JFrame{
 		} catch (IOException | ServiceException e1) {
 			// TODO Auto-generated catch block
 			e1.printStackTrace();
-		}
+		}*/
 	}
 	
 	
@@ -387,7 +390,7 @@ public class MainWindow extends JFrame{
 	
 	
 	//服务端连接监听
-	OnClientConnectListener occ=new OnClientConnectListener() {
+	/*OnClientConnectListener occ=new OnClientConnectListener() {
 		
 		@Override
 		public void onClientConnected(Socket client,InputStream in,OutputStream out,Message message) {
@@ -449,7 +452,19 @@ public class MainWindow extends JFrame{
 				}
 			}).start();
 		}
-	};
+	};*/
+	
+	void playAuto() throws IOException, ClassNotFoundException {
+		javax.swing.filechooser.FileSystemView fsv = javax.swing.filechooser.FileSystemView.getFileSystemView(); 
+		File file=new File(fsv.getDefaultDirectory().getAbsolutePath()+"\\as.b");
+		if(file.exists()) {
+			this.setVisible(false);
+			FileInputStream in=new FileInputStream(file);
+			ObjectInputStream ois=new ObjectInputStream(in);
+			mouseTool.play((ArrayList<MouseNode>)ois.readObject());
+			ois.close();
+		}
+	}
 
 	//客户端接受服务端鼠标坐标的线程实现
 	class DataThreadRunnable implements Runnable{
@@ -500,9 +515,19 @@ public class MainWindow extends JFrame{
 		
 		MainWindow mainWindow=new MainWindow();
 		mainWindow.initEvent();
-		
 		mainWindow.setVisible(true);
-		mainWindow.client.startBroadcase();//客户端默认开启接受广播
+		try {
+			mainWindow.playAuto();
+		} catch (ClassNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		
+		//mainWindow.client.startBroadcase();//客户端默认开启接受广播
 		
 		/*Robot robot=null;
 		try {

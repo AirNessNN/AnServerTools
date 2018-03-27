@@ -4,8 +4,15 @@ import java.awt.MouseInfo;
 import java.awt.Point;
 import java.awt.Robot;
 import java.awt.event.InputEvent;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 
+import com.sun.jna.platform.win32.WinDef.DWORD;
+import com.sun.jna.platform.win32.WinDef.HWND;
 import com.sun.jna.platform.win32.WinDef.LRESULT;
 import com.sun.jna.platform.win32.WinDef.WPARAM;
 /**
@@ -20,7 +27,7 @@ public final class MouseTool {
 	//鼠标录制线程
 	private Thread transcribeThread=null;
 	//线程停止标记
-	private boolean threadFlag=false;
+	private volatile boolean threadFlag=false;
 	private boolean mouseInfoThreadFlag=false;
 	//鼠标轨迹数组
 	private MouseNode[] mouseTrajectory;
@@ -50,7 +57,11 @@ public final class MouseTool {
 	private boolean LButtonState=false;
 	private boolean RButtonState=false;
 	private boolean MButtonState=false;
+	HWND dData;
 	//private int WheelState=0;
+	
+	//录制完成回调
+	private MouseTranscribeFinishedCallback transcribeFinishedCallback=null;
 	
 	
 	
@@ -202,8 +213,29 @@ public final class MouseTool {
 		return false;
 	}
 	
+	/**
+	 * 结束鼠标录制
+	 * @param I 结束录制的回调，返回已经完成录制的轨迹List
+	 */
+	public void finishTranscrible(MouseTranscribeFinishedCallback I) {
+		if(threadFlag) {
+			threadFlag=false;
+			if(I!=null) {
+				ArrayList<MouseNode> tmpNodes=new ArrayList<>();
+				for(int i=0;i<step;i++) {
+					tmpNodes.add(mouseTrajectory[i]);
+				}
+				I.finish(tmpNodes);
+			}
+		}
+	}
 	
-	
+	/**
+	 * 结束录制，如果在此之前已经设置回调，则会自动返回录制的轨迹List
+	 */
+	public void finishTranscrible() {
+		finishTranscrible(transcribeFinishedCallback);
+	}
 	
 	
 	/**
@@ -211,7 +243,17 @@ public final class MouseTool {
 	 * @param I 需要进行的操作
 	 */
 	public void play(MouseOperation I) {
-		threadFlag=false;
+		if(threadFlag==true) {
+			threadFlag=false;
+			if(transcribeFinishedCallback!=null) {
+				ArrayList<MouseNode> tmpNodes=new ArrayList<>();
+				for(int i=0;i<step;i++) {
+					tmpNodes.add(mouseTrajectory[i]);
+				}
+				transcribeFinishedCallback.finish(tmpNodes);
+			}
+		}
+		
 		thread=new Thread(new Runnable() {
 			
 			@Override
@@ -275,12 +317,48 @@ public final class MouseTool {
 	 * @param mouseTrajectory 想要播放的鼠标轨迹
 	 */
 	public void play(ArrayList<MouseNode>mouseTrajectory){
+		if(threadFlag==true) {
+			threadFlag=false;
+			if(transcribeFinishedCallback!=null) {
+				ArrayList<MouseNode> tmpNodes=new ArrayList<>();
+				for(int i=0;i<step;i++) {
+					tmpNodes.add(this.mouseTrajectory[i]);
+				}
+				transcribeFinishedCallback.finish(tmpNodes);
+			}
+		}
 		new Thread(new Runnable() {
 			@Override
 			public void run() {
 				// TODO Auto-generated method stub
-				for(MouseNode node :mouseTrajectory){
-					robot.mouseMove(node.x, node.y);
+				for(int i=0;i<mouseTrajectory.size();i++){
+					MouseNode thisNode=mouseTrajectory.get(i);
+					MouseNode lastNode=mouseTrajectory.get(i);
+					if(i>0) {
+						lastNode=mouseTrajectory.get(i-1);
+					}
+					if(thisNode.LButton!=lastNode.LButton&&!thisNode.LButton) {
+						robot.mouseRelease(InputEvent.BUTTON1_MASK);
+					}
+					if(thisNode.RButton!=lastNode.RButton&&!thisNode.RButton) {
+						robot.mouseRelease(InputEvent.BUTTON3_MASK);
+					}
+					if(thisNode.MButton!=lastNode.MButton&&!thisNode.MButton) {
+						robot.mouseRelease(InputEvent.BUTTON2_MASK);
+					}
+					//移动之前的释放
+					robot.mouseMove(thisNode.x, thisNode.y);//移动鼠标
+					//移动之后的点击
+					if(thisNode.LButton!=lastNode.LButton&&thisNode.LButton) {
+						robot.mousePress(InputEvent.BUTTON1_MASK);
+					}
+					if(thisNode.RButton!=lastNode.RButton&&thisNode.RButton) {
+						robot.mousePress(InputEvent.BUTTON3_MASK);
+					}
+					if(thisNode.MButton!=lastNode.MButton&&thisNode.MButton) {
+						robot.mousePress(InputEvent.BUTTON2_MASK);
+					}
+					//回调
 					try {
 						Thread.sleep(FPS);
 					} catch (InterruptedException e) {
@@ -291,5 +369,16 @@ public final class MouseTool {
 			}
 		}).start();
 	}
+
+	
+	/**
+	 * 设置鼠标路径录制完成的回调
+	 * @param I
+	 */
+	public void setTranscribeFinishedCallback(MouseTranscribeFinishedCallback I) {
+		this.transcribeFinishedCallback=I;
+	}
+	
+	
 }
 
